@@ -25,16 +25,18 @@ namespace lcd
     // ========== group="LCD Display"
 
     //% group="LCD Display"
-    //% block="beim Start %display || Reset %reset" weight=6
-    //% reset.shadow=toggleYesNo
-    export function init_display(display: eDisplay, reset?: boolean) {
+    //% block="beim Start %display || I²C Check %i2c_check Reset %reset" weight=6
+    //% i2c_check.shadow=toggleYesNo reset.shadow=toggleYesNo
+    export function init_display(display: eDisplay, i2c_check?: boolean, reset?: boolean) {
         q_display = display
         if (q_display == eDisplay.grove_16_2) { q_i2c = 0x3E; q_rows = 2; q_cols = 16 }
         else if (q_display == eDisplay.qwiic_16_2) { q_i2c = 0x72; q_rows = 2; q_cols = 16 }
         else if (q_display == eDisplay.qwiic_20_4) { q_i2c = 0x72; q_rows = 4; q_cols = 20 }
 
         // LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF // 0x0C
-        set_display(true, false, false)
+        if (i2c_check && !set_display(true, false, false))
+            q_display = eDisplay.none
+        //set_display(true, false, false)
         // LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT // 0x06
         //entrymodeset(pADDR, eLCD_ENTRYMODE.LCD_ENTRYLEFT, eLCD_ENTRYSHIFT.LCD_ENTRYSHIFTDECREMENT)
         if (reset) {
@@ -167,18 +169,22 @@ namespace lcd
 
         if (q_display != eDisplay.none && text_list.length > 0) {
             // zeigt 60 Zeichen aus text_list an und schaltet weiter
-            if (list_index !== undefined) { q_list_index = list_index } else {  }
+            if (list_index !== undefined) { q_list_index = list_index } else { }
             if (string_index !== undefined) { q_string_index = string_index }
             if (!between(q_list_index, 0, text_list.length - 1)) { q_list_index = 0 }
             let text: string = text_list[q_list_index]
             if (!between(q_string_index, 0, text.length - 1)) { q_string_index = 0 }
 
+            let text_substr = text.substr(q_string_index, 60)
+
             clear_display()
             // Zeile 0 text_list_index, text_substr_index, text_length(gesamt)
-            write_text(0, null, q_cols - 1, q_list_index + " " + q_string_index + " " + text.length)
+            write_text(0, null, q_cols - 1,
+                q_list_index + "/" + text_list.length + " " + q_string_index + "-" + (q_string_index + Math.min(59, text_substr.length - 1)) + " " + text.length)
+
             // Zeile 1-2-3 60 Zeichen von text = 3 Zeilen x 20 Zeichen
             set_cursor(1, 0)
-            write_lcd(text.substr(q_string_index, 60))
+            write_lcd(text_substr)
 
             if (increment == eINC.inc1) {
                 if (text.length > q_string_index + 60) {
