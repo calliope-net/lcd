@@ -169,7 +169,7 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
     }
 
     //% group="Text Array"
-    //% block="Text Array %text_list %increment || list_index %list_index string_index %string_index" weight=2
+    //% block="Text Array %text_list %increment || Index %list_index Substring %string_index" weight=2
     //% increment.shadow=toggleYesNo
     //% inlineInputMode=inline
     export function write_array(text_list: string[], increment: eINC, list_index?: number, string_index?: number) {
