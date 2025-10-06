@@ -88,7 +88,7 @@ namespace lcd
     //% group="Text anzeigen"
     //% block="Text Zeile %row von %col bis %end %value || %align" weight=7
     //% row.min=0 row.max=3 col.min=0 col.max=19 end.min=0 end.max=19 end.defl=15
-    //% value.shadow="lcd_text"
+    //% value.shadow=lcd_text
     //% align.defl=0
     //% inlineInputMode=inline
     export function write_text(row: number, col: number, end: number, value: any, align?: eAlign) {
@@ -129,7 +129,7 @@ namespace lcd
 
     //% group="Text anzeigen"
     //% block="Text %value" weight=2
-    //% value.shadow="lcd_text"
+    //% value.shadow=lcd_text
     export function write_lcd(value: any) {
         if (q_display != eDisplay.none) {
             let text: string = convertToText(value)
@@ -149,26 +149,50 @@ namespace lcd
         }
     }
 
-    let i_list = 0
-    let i_substring: number = null
-    function print_60(text_list: string[], i: number) {
-        // zeigt 60 Zeichen aus text_list an und schaltet weiter
-        let text: string = text_list[i_list]
-        clear_display()
-        // Zeile 0 text_list_index, text_substr_index, text_length(gesamt)
-        write_text(0, null, q_cols - 1, i_list + " " + i_substring + " " + text.length)
-        // Zeile 1-2-3 60 Zeichen von text
-        set_cursor(1, 0)
-        write_lcd(text.substr(i_substring, 60))
+    let q_list_index = 0
+    let q_string_index = 0
 
-        if (text.length > i_substring + 60) {
-            i_substring += 60
-        } else if (text_list.length - 1 > i_list) {
-            i_list += 1
-            i_substring = 0
-        } else {
-            i_list = 0
-            i_substring = 0
+    export enum eINC {
+        //% block="+1"
+        inc1 = 1,
+        //% block="+0"
+        inc0 = 0
+    }
+
+    //% group="Text Array"
+    //% block="Text Array %text_list %increment || list_index %list_index string_index %string_index" weight=2
+    //% increment.shadow=toggleYesNo
+    //% inlineInputMode=inline
+    export function write_array(text_list: string[], increment: eINC, list_index?: number, string_index?: number) {
+
+        if (q_display != eDisplay.none && text_list.length > 0) {
+            // zeigt 60 Zeichen aus text_list an und schaltet weiter
+            if (list_index !== undefined) { q_list_index = list_index } else {  }
+            if (string_index !== undefined) { q_string_index = string_index }
+            if (!between(q_list_index, 0, text_list.length - 1)) { q_list_index = 0 }
+            let text: string = text_list[q_list_index]
+            if (!between(q_string_index, 0, text.length - 1)) { q_string_index = 0 }
+
+            clear_display()
+            // Zeile 0 text_list_index, text_substr_index, text_length(gesamt)
+            write_text(0, null, q_cols - 1, q_list_index + " " + q_string_index + " " + text.length)
+            // Zeile 1-2-3 60 Zeichen von text = 3 Zeilen x 20 Zeichen
+            set_cursor(1, 0)
+            write_lcd(text.substr(q_string_index, 60))
+
+            if (increment == eINC.inc1) {
+                if (text.length > q_string_index + 60) {
+                    q_string_index += 60
+                }
+                else if (text_list.length - 1 > q_list_index) {
+                    q_list_index += 1
+                    q_string_index = 0
+                }
+                else {
+                    q_list_index = 0
+                    q_string_index = 0
+                }
+            }
         }
     }
 
