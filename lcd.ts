@@ -1,14 +1,13 @@
 //% color=#001FCF icon="\uf26c" block="LCD" weight=18
 namespace lcd
 /*
-
+Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
 */ {
 
     let q_display: eDisplay
     let q_i2c: number
     let q_rows: number
     let q_cols: number
-    //let q_text_list: string[] = []
 
     export enum eDisplay {
         //% block="kein Display"
