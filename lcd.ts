@@ -34,9 +34,10 @@ namespace lcd
         else if (q_display == eDisplay.qwiic_20_4) { q_i2c = 0x72; q_rows = 4; q_cols = 20 }
 
         // LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF // 0x0C
-        if (i2c_check && !set_display(true, false, false))
+        // set_display(true, false, false)
+        if (i2c_check && !special_command(LCD_DISPLAYCONTROL + 0x04)) // Display on, Corsor off
             q_display = eDisplay.none
-        //set_display(true, false, false)
+
         // LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT // 0x06
         //entrymodeset(pADDR, eLCD_ENTRYMODE.LCD_ENTRYLEFT, eLCD_ENTRYSHIFT.LCD_ENTRYSHIFTDECREMENT)
         if (reset) {
@@ -58,8 +59,10 @@ namespace lcd
     //% group="LCD Display"
     //% block="Display löschen" weight=5
     export function clear_display() {
-        special_command(eLCD_CLEARDISPLAY.LCD_CLEARDISPLAY)
-        set_cursor(0, 0)
+        if (q_display != eDisplay.none) {
+            special_command(eLCD_CLEARDISPLAY.LCD_CLEARDISPLAY)
+            set_cursor(0, 0)
+        }
     }
 
     //% group="LCD Display"
@@ -68,12 +71,15 @@ namespace lcd
     //% display.shadow=toggleOnOff cursor.shadow=toggleOnOff blink.shadow=toggleOnOff
     //% inlineInputMode=inline
     export function set_display(display: boolean, cursor: boolean, blink?: boolean) {
-        let command: number = LCD_DISPLAYCONTROL // 0x08
-        if (display) { command += 0x04 }
-        if (cursor) { command += 0x02 }
-        if (blink) { command += 0x01 }
+        if (q_display != eDisplay.none) {
+            let command: number = LCD_DISPLAYCONTROL // 0x08
+            if (display) { command += 0x04 }
+            if (cursor) { command += 0x02 }
+            if (blink) { command += 0x01 }
 
-        return special_command(command)
+            special_command(command)
+        }
+        //else return false
     }
 
 
@@ -94,28 +100,30 @@ namespace lcd
     //% align.defl=0
     //% inlineInputMode=inline
     export function write_text(row: number, col: number, end: number, value: any, align?: eAlign) {
-        let text: string = convertToText(value)
-        if (end > q_cols - 1) { end = q_cols - 1 }
-        let len: number = end - col + 1
+        if (q_display != eDisplay.none) {
+            let text: string = convertToText(value)
+            if (end > q_cols - 1) { end = q_cols - 1 }
+            let len: number = end - col + 1
 
-        if (between(row, 0, q_rows - 1) && between(col, 0, q_cols - 1) && between(len, 0, q_cols)) {
-            set_cursor(row, col)
+            if (between(row, 0, q_rows - 1) && between(col, 0, q_cols - 1) && between(len, 0, q_cols)) {
+                set_cursor(row, col)
 
-            if (text.length > len)
-                text = text.substr(0, len)
-            else if (text.length < len && align == eAlign.right)
-                text = "                    ".substr(0, len - text.length) + text
-            else if (text.length < len)
-                text = text + "                    ".substr(0, len - text.length)
+                if (text.length > len)
+                    text = text.substr(0, len)
+                else if (text.length < len && align == eAlign.right)
+                    text = "                    ".substr(0, len - text.length) + text
+                else if (text.length < len)
+                    text = text + "                    ".substr(0, len - text.length)
 
-            if (q_display == eDisplay.qwiic_16_2 || q_display == eDisplay.qwiic_20_4)
-                text = text.replace("|", "||")
-            let bu = Buffer.create(text.length)
-            for (let i = 0; i < text.length; i++) {
-                bu.setUint8(i, change_char_code(text, i))
+                if (q_display == eDisplay.qwiic_16_2 || q_display == eDisplay.qwiic_20_4)
+                    text = text.replace("|", "||")
+                let bu = Buffer.create(text.length)
+                for (let i = 0; i < text.length; i++) {
+                    bu.setUint8(i, change_char_code(text, i))
+                }
+                i2c_write_buffer(bu)
+                basic.pause(10) // sleep(0.01)
             }
-            i2c_write_buffer(bu)
-            basic.pause(10) // sleep(0.01)
         }
     }
 
@@ -180,7 +188,7 @@ namespace lcd
             clear_display()
             // Zeile 0 text_list_index, text_substr_index, text_length(gesamt)
             write_text(0, null, q_cols - 1,
-                q_list_index + "/" + text_list.length + " " + q_string_index + "-" + (q_string_index + Math.min(59, text_substr.length - 1)) + " " + text.length)
+                q_list_index + "/" + text_list.length + " " + q_string_index + "-" + (q_string_index + Math.min(59, text_substr.length - 1)) + "/" + text.length)
 
             // Zeile 1-2-3 60 Zeichen von text = 3 Zeilen x 20 Zeichen
             set_cursor(1, 0)
@@ -230,8 +238,10 @@ namespace lcd
             # so we need our "block of bytes" to include
             # CONTRAST_COMMAND and contrast value
         */
-        i2c_write_buffer(Buffer.fromArray([SETTING_COMMAND, command, byte & 0xFF]))
-        basic.pause(50) // sleep(0.05)
+        if (q_display != eDisplay.none) {
+            i2c_write_buffer(Buffer.fromArray([SETTING_COMMAND, command, byte & 0xFF]))
+            basic.pause(50) // sleep(0.05)
+        }
     }
 
     //% blockId=lcd_text block="%s" blockHidden=true
