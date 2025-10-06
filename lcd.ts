@@ -86,7 +86,7 @@ namespace lcd16x2rgb
 
     //% group="Text anzeigen"
     //% block="Text Zeile %row von %col bis %end %value || %align" weight=7
-    //% row.min=0 row.max=3 col.min=0 col.max=19 end.min=0 end.max=19 end.defl=19
+    //% row.min=0 row.max=3 col.min=0 col.max=19 end.min=0 end.max=19 end.defl=15
     //% value.shadow="lcd_text"
     //% align.defl=0
     //% inlineInputMode=inline
