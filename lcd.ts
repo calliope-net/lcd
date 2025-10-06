@@ -162,10 +162,10 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
     let q_string_index = 0
 
     export enum eINC {
-        //% block="+1"
-        inc1 = 1,
         //% block="+0"
-        inc0 = 0
+        inc0 = 0,
+        //% block="+1"
+        inc1 = 1
     }
 
     //% group="Text Array"
