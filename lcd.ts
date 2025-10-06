@@ -1,5 +1,5 @@
 //% color=#001FCF icon="\uf26c" block="LCD" weight=18
-namespace lcd16x2rgb
+namespace lcd
 /*
 
 */ {
@@ -8,6 +8,7 @@ namespace lcd16x2rgb
     let q_i2c: number
     let q_rows: number
     let q_cols: number
+    //let q_text_list: string[] = []
 
     export enum eDisplay {
         //% block="kein Display"
@@ -92,6 +93,7 @@ namespace lcd16x2rgb
     //% inlineInputMode=inline
     export function write_text(row: number, col: number, end: number, value: any, align?: eAlign) {
         let text: string = convertToText(value)
+        if (end > q_cols - 1) { end = q_cols - 1 }
         let len: number = end - col + 1
 
         if (between(row, 0, q_rows - 1) && between(col, 0, q_cols - 1) && between(len, 0, q_cols)) {
@@ -146,6 +148,30 @@ namespace lcd16x2rgb
             }
         }
     }
+
+    let i_list = 0
+    let i_substring: number = null
+    function print_60(text_list: string[], i: number) {
+        // zeigt 60 Zeichen aus text_list an und schaltet weiter
+        let text: string = text_list[i_list]
+        clear_display()
+        // Zeile 0 text_list_index, text_substr_index, text_length(gesamt)
+        write_text(0, null, q_cols - 1, i_list + " " + i_substring + " " + text.length)
+        // Zeile 1-2-3 60 Zeichen von text
+        set_cursor(1, 0)
+        write_lcd(text.substr(i_substring, 60))
+
+        if (text.length > i_substring + 60) {
+            i_substring += 60
+        } else if (text_list.length - 1 > i_list) {
+            i_list += 1
+            i_substring = 0
+        } else {
+            i_list = 0
+            i_substring = 0
+        }
+    }
+
 
 
 
