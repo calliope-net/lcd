@@ -12,11 +12,11 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
     export enum eDisplay {
         //% block="kein Display"
         none,
-        //% block="Grove 16x2"
+        //% block="Grove LCD 16x2"
         grove_16_2,
-        //% block="Qwiic 16x2"
+        //% block="Qwiic LCD 16x2"
         qwiic_16_2,
-        //% block="Qwiic 20x4"
+        //% block="Qwiic LCD 20x4"
         qwiic_20_4
     }
 
