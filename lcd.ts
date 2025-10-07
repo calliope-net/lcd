@@ -1,13 +1,24 @@
 //% color=#001FCF icon="\uf26c" block="LCD" weight=18
 namespace lcd
-/*
+/* Calliope MakeCode v4 Erweiterung für verschiedene LCD Displays
+
+Qwiic:
+[Hardware]  https://www.sparkfun.com/products/16398 SparkFun 20x4 SerLCD - RGB Backlight (Qwiic)
+            https://www.sparkfun.com/products/16397 SparkFun 16x2 SerLCD - RGB Text (Qwiic)
+            https://www.sparkfun.com/products/16396 SparkFun 16x2 SerLCD - RGB Backlight (Qwiic)
+[Datasheet] https://www.sparkfun.com/datasheets/LCD/HD44780.pdf (ohne SETTING_COMMANDs)
+
+Grove:
+[Hardware]  https://wiki.seeedstudio.com/Grove-16x2_LCD_Series
+[Datasheet] https://files.seeedstudio.com/wiki/Grove-16x2_LCD_Series/res/JDH_1804_Datasheet.pdf
+
 Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
 */ {
-
+    // q_ sind globale Variablen, werden nur bei init gesetzt
     let q_display: eDisplay
-    let q_i2c: number
-    let q_rows: number
-    let q_cols: number
+    let q_i2c: number  // I²C Adresse 0x3E oder 0x72
+    let q_rows: number // 2 oder 4 Zeilen
+    let q_cols: number // 16 oder 20 Zeichen pro Zeile
 
     export enum eDisplay {
         //% block="kein Display"
@@ -22,6 +33,12 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
 
 
     // ========== group="LCD Display"
+
+    /*
+    i2c_check = true erkennt, ob Display angeschlossen ist beim ersten i2cWriteBuffer und schaltet auf 'kein Display'
+    reset = true setzt Kontrast (Helligkeit) zurück, nur bei Qwiic-Displays mit RGB Hintergrundbeleuchtung
+    RGB wird hier nicht unterstützt
+    */
 
     //% group="LCD Display"
     //% block="beim Start %display || I²C Check %i2c_check Reset %reset" weight=6
@@ -177,14 +194,13 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
         }
         else if (q_display == eDisplay.grove_16_2) {
             buffer = Buffer.create(text.length + 1)
-            buffer.setUint8(0, 0x40)
+            buffer.setUint8(0, 0x40) // Grove Text beginnt im Buffer mit 0x40
             for (let i = 0; i <= text.length - 1; i++) {
                 buffer.setUint8(i + 1, change_char_code(text, i))
             }
         }
         return buffer
     }
-
 
     //% group="Text anzeigen"
     //% block="Cursor Zeile %row von %col" weight=3
@@ -207,29 +223,36 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
     export function write_lcd(value: any) {
         if (q_display != eDisplay.none) {
             let text: string = convertToText(value)
-            if (q_display == eDisplay.qwiic_16_2 || q_display == eDisplay.qwiic_20_4)
-                text = text.replace("|", "||")
-
-            let buffer = write_text_to_buffer(text)
 
             if (q_display == eDisplay.qwiic_16_2 || q_display == eDisplay.qwiic_20_4) {
+                //let buffer = write_text_to_buffer(text)
                 // 22.09.2025 Qwiic LCD Display erlaubt nur max 32 Byte pro Buffer; für 80 Zeichen teilen in 3 Buffer 3*27 = 81
                 // Zeichen werden auf nächster Zeile weiter geschrieben, nach Ende des Displays Fortsetzung auf erster Zeile
-                let bu_list = buffer.chunked(27) // Splits buffer into parts no longer than 27
+                let bu_list = write_text_to_buffer(text).chunked(27) // Splits buffer into parts no longer than 27
                 for (let i = 0; i < bu_list.length; i++) {
                     i2c_write_buffer(bu_list[i])
                     basic.pause(10) // sleep(0.01)
                 }
             }
             else if (q_display == eDisplay.grove_16_2) {
-                i2c_write_buffer(buffer)
+                i2c_write_buffer(write_text_to_buffer(text))
                 basic.pause(10) // sleep(0.01)
             }
         }
     }
-
-    let q_list_index = 0
-    let q_string_index = 0
+    /*
+    Spezial Funktion, um längere Texte in kleinen Stücken anzuzeigen
+    Zeile 0 zeigt Status (Index und Länge an)
+    ab Zeile 1 wird der Text angezeigt (16 Zeichen oder 60 Zeichen über 3 Zeilen)
+    der Text ist in einem String-Array: q_list_index ist Index im Array
+    ist der Text länger als 60 bzw. 16 Zeichen, wird er in Substrings dieser Länge geteilt
+    ist Parameter increment 1, wird der Index bei jedem Aufruf weiter gezählt
+    die Parameter list_index und string_index müssen weg gelassen werden, um weiter zu schalten
+    ist der Parameter angegeben, wird ab da angezeigt
+    Verwendungszweck: die Response von AT Kommandos beim WLAN Modul anzeigen
+    */
+    let q_list_index = 0 // 0, 1, 2
+    let q_string_index = 0 // 0, (16|60), (32|120) substr start
 
     export enum eINC {
         //% block="+0"
@@ -249,7 +272,7 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
         if (q_display != eDisplay.none && text_list.length > 0) {
             if (q_display == eDisplay.qwiic_20_4)
                 zeichen = 60
-            else if (q_display == eDisplay.qwiic_16_2 || q_display == eDisplay.grove_16_2)
+            else //if (q_display == eDisplay.qwiic_16_2 || q_display == eDisplay.grove_16_2)
                 zeichen = 16
 
             if (list_index !== undefined) { q_list_index = list_index }
@@ -262,7 +285,7 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
 
             clear_display()
             // Zeile 0 text_list_index, text_substr_index, text_length(gesamt)
-            write_text(0, null, q_cols - 1,
+            write_text(0, 0, q_cols - 1,
                 q_list_index + "/" + text_list.length + " " + q_string_index + "-" + (q_string_index + Math.min(59, text_substr.length - 1)) + "/" + text.length)
 
             // Zeile 1-2-3 60 Zeichen von text = 3 Zeilen x 20 Zeichen
@@ -321,37 +344,24 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
     }
 
     //% blockId=lcd_text block="%s" blockHidden=true
-    export function lcd_text(s: string): string { return s }
+    export function lcd_text(s: string): string { return s } // für shadow beim text:any Parameter
 
     // Qwiic 0xFE = 254
-    function special_command(command: number) { return i2c_write_buffer(Buffer.fromArray([SPECIAL_COMMAND, command & 0xFF])) }
+    function special_command(command: number) { return i2c_write_buffer(Buffer.fromArray([SPECIAL_COMMAND, command])) }
 
     // Grove 0x80 = 128
     function write0x80Byte(command: number) { return i2c_write_buffer(Buffer.fromArray([0x80, command])) }
-
-    //function sleep(sekunden: number) { basic.pause(sekunden * 1000) }
 
     function between(i0: number, i1: number, i2: number): boolean { return (i0 >= i1 && i0 <= i2) }
 
     function i2c_write_buffer(buffer: Buffer) {
         if (q_display != eDisplay.none)
-            return pins.i2cWriteBuffer(q_i2c, buffer) == 0
+            return pins.i2cWriteBuffer(q_i2c, buffer) == 0 // 0 ist kein Fehler, Display angeschlossen
         else
             return false
-        /*  if (n_i2cError == 0) { // vorher kein Fehler
-             n_i2cError = pins.i2cWriteBuffer(pADDR, buf, repeat)
-             if (n_i2cCheck && n_i2cError != 0)  // vorher kein Fehler, wenn (n_i2cCheck=true): beim 1. Fehler anzeigen
-                 basic.showString(Buffer.fromArray([pADDR]).toHex()) // zeige fehlerhafte i2c-Adresse als HEX
-         } else if (!n_i2cCheck)  // vorher Fehler, aber ignorieren (n_i2cCheck=false): i2c weiter versuchen
-             n_i2cError = pins.i2cWriteBuffer(pADDR, buf, repeat)
-         //else { } // n_i2cCheck=true und n_i2cError != 0: weitere i2c Aufrufe blockieren
-          */
-    }
-
+    } // i2cReadBuffer wird bei Displays nicht gebraucht
 
     function change_char_code(text: string, i: number) {
-        //let char = text.charAt(i)
-        //if (char.length == 0) return 0
         switch (text.charCodeAt(i)) {
             case SPECIAL_COMMAND: return 0xD8 // 0xFE im Text wirkt als Command, auch
             //case SETTING_COMMAND: return 0xC9 // '|'  wenn es nicht am Anfang im Buffer steht
@@ -392,10 +402,6 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
     //    LCD_SETCGRAMADDR = 0x40   nicht benutzt
     // set Cursor
     const LCD_SETDDRAMADDR = 0x80   // SPECIAL_COMMAND, LCD_SETDDRAMADDR | (col + row_offsets[row])
-
-
-
-    // Grove
 
 
 } // lcd.ts
