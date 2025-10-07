@@ -35,7 +35,8 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
     // ========== group="LCD Display"
 
     /*
-    i2c_check = true erkennt, ob Display angeschlossen ist beim ersten i2cWriteBuffer und schaltet auf 'kein Display'
+    i2c_check = true erkennt, ob Display angeschlossen ist beim ersten i2cWriteBuffer und schaltet bei Fehlen auf 'kein Display'
+    wenn 'kein Display', sind alle Funktionsaufrufe unwirksam, kein I²C und kein Code wird abgearbeitet
     reset = true setzt Kontrast (Helligkeit) zurück, nur bei Qwiic-Displays mit RGB Hintergrundbeleuchtung
     RGB wird hier nicht unterstützt
     */
@@ -53,7 +54,7 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
             // LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF // 0x0C
             // set_display(true, false, false)
             if (i2c_check && !special_command(LCD_DISPLAYCONTROL + 0x04)) // Display on, Corsor off
-                q_display = eDisplay.none
+                q_display = eDisplay.none // wenn Display über I²C nicht reagiert
 
             // LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT // 0x06
             //entrymodeset(pADDR, eLCD_ENTRYMODE.LCD_ENTRYLEFT, eLCD_ENTRYSHIFT.LCD_ENTRYSHIFTDECREMENT)
@@ -71,10 +72,9 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
 
             //write0x80Byte(0x38) // Function Set DL N
             if (i2c_check && !write0x80Byte(0x38)) // Display on, Cursor off
-                q_display = eDisplay.none
+                q_display = eDisplay.none // wenn Display über I²C nicht reagiert
 
             control.waitMicros(50) // >39µs
-            //if (i2cNoError(pADDR)) {
             write0x80Byte(0x0C) // Display ON, Cursor OFF
             control.waitMicros(50) // >39µs
             write0x80Byte(0x01) // Screen Clear
@@ -240,9 +240,12 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
             }
         }
     }
+
+
     /*
     Spezial Funktion, um längere Texte in kleinen Stücken anzuzeigen
-    Zeile 0 zeigt Status (Index und Länge an)
+    durch wiederholtes Aufrufen (ohne optionale Parameter) wird immer das nächste Stück Text angezeigt
+    Zeile 0 zeigt Status (Index und Länge) an
     ab Zeile 1 wird der Text angezeigt (16 Zeichen oder 60 Zeichen über 3 Zeilen)
     der Text ist in einem String-Array: q_list_index ist Index im Array
     ist der Text länger als 60 bzw. 16 Zeichen, wird er in Substrings dieser Länge geteilt
@@ -284,18 +287,18 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
             let text_substr = text.substr(q_string_index, zeichen)
 
             clear_display()
-            // Zeile 0 text_list_index, text_substr_index, text_length(gesamt)
+            // Status Zeile 0 text_list_index, text_substr_index, text_length(gesamt)
             write_text(0, 0, q_cols - 1,
                 q_list_index + "/" + text_list.length + " " + q_string_index + "-" + (q_string_index + Math.min(59, text_substr.length - 1)) + "/" + text.length)
 
             // Zeile 1-2-3 60 Zeichen von text = 3 Zeilen x 20 Zeichen
-            // Zeile 1 16 Zeichen von text = 1 Zeilen x 16 Zeichen
+            // Zeile 1 16 Zeichen von text = 1 Zeile x 16 Zeichen
             set_cursor(1, 0)
             write_lcd(text_substr)
 
             if (increment == eINC.inc1) {
                 if (text.length > q_string_index + zeichen) {
-                    q_string_index += zeichen // 60 oder 16
+                    q_string_index += zeichen // im selben String 60 oder 16 Zeichen weiter rücken
                 }
                 else if (text_list.length - 1 > q_list_index) {
                     q_list_index += 1  // nächstes Element im String-Array
@@ -332,13 +335,9 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
             # (1) SETTINGS_COMMAND
             # (2) CONTRAST_COMMAND
             # (3) contrast value
-            #
-            # To do this, we are going to use writeBlock(),
-            # so we need our "block of bytes" to include
-            # CONTRAST_COMMAND and contrast value
         */
         if (q_display != eDisplay.none) {
-            i2c_write_buffer(Buffer.fromArray([SETTING_COMMAND, command, byte & 0xFF]))
+            i2c_write_buffer(Buffer.fromArray([SETTING_COMMAND, command, byte]))
             basic.pause(50) // sleep(0.05)
         }
     }
