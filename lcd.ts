@@ -101,9 +101,14 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
             if (cursor) { command += 0x02 }
             if (blink) { command += 0x01 }
 
-            special_command(command)
+            if (q_display == eDisplay.qwiic_16_2 || q_display == eDisplay.qwiic_20_4) {
+                special_command(command)
+            }
+            else if (q_display == eDisplay.grove_16_2) {
+                write0x80Byte(command)
+                control.waitMicros(50)
+            }
         }
-        //else return false
     }
 
 
@@ -126,7 +131,7 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
     export function write_text(row: number, col: number, end: number, value: any, align?: eAlign) {
         if (q_display != eDisplay.none) {
             let text: string = convertToText(value)
-            if (end > q_cols - 1) { end = q_cols - 1 }
+            if (end > q_cols - 1) { end = q_cols - 1 } // max. Zeilenlänge
             let len: number = end - col + 1
 
             if (between(row, 0, q_rows - 1) && between(col, 0, q_cols - 1) && between(len, 0, q_cols)) {
@@ -186,7 +191,13 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
     //% row.min=0 row.max=3 col.min=0 col.max=19
     export function set_cursor(row: number, col: number) {
         if (between(row, 0, q_rows - 1) && between(col, 0, q_cols - 1)) {
-            special_command(LCD_SETDDRAMADDR | ([0x00, 0x40, 0x14, 0x54].get(row) + col)) // max. 7 Bit (127)
+            if (q_display == eDisplay.qwiic_16_2 || q_display == eDisplay.qwiic_20_4) {
+                special_command(LCD_SETDDRAMADDR | ([0x00, 0x40, 0x14, 0x54].get(row) + col)) // max. 7 Bit (127)
+            }
+            else if (q_display == eDisplay.grove_16_2) {
+                write0x80Byte((row == 0 ? col | 0x80 : col | 0xc0))
+                control.waitMicros(50)
+            }
         }
     }
 
