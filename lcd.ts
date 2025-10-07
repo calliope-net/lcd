@@ -51,18 +51,16 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
         else if (q_display == eDisplay.qwiic_20_4) { q_i2c = 0x72; q_rows = 4; q_cols = 20 }
 
         if (q_display == eDisplay.qwiic_16_2 || q_display == eDisplay.qwiic_20_4) {
-            // LCD_DISPLAYON | LCD_CURSOROFF | LCD_BLINKOFF // 0x0C
             // set_display(true, false, false)
-            if (i2c_check && !special_command(LCD_DISPLAYCONTROL + 0x04)) // Display on, Corsor off
+            // bei if (1. !Funktion && 2. i2c_check) sonst wird die Funktion nicht aufgerufen
+            if (!special_command(LCD_DISPLAYCONTROL + 0x04) && i2c_check) // Display on, Corsor off
                 q_display = eDisplay.none // wenn Display über I²C nicht reagiert
 
             // LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT // 0x06
             //entrymodeset(pADDR, eLCD_ENTRYMODE.LCD_ENTRYLEFT, eLCD_ENTRYSHIFT.LCD_ENTRYSHIFTDECREMENT)
             if (reset) {
-                // RGB white
-                //setBacklight(pADDR, 255, 255, 255)
-                // CONTRAST_COMMAND
-                setting_command_2(eSETTING_COMMAND_2.CONTRAST_COMMAND, 0)
+                //setBacklight(pADDR, 255, 255, 255) // RGB white
+                setting_command_2(eSETTING_COMMAND_2.CONTRAST_COMMAND, 0) // CONTRAST_COMMAND
             }
             clear_display()
         }
@@ -70,8 +68,9 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
         else if (q_display == eDisplay.grove_16_2) {
             control.waitMicros(30000) // Power on + more than 15ms
 
+            // bei if (1. !Funktion && 2. i2c_check) sonst wird die Funktion nicht aufgerufen
             //write0x80Byte(0x38) // Function Set DL N
-            if (i2c_check && !write0x80Byte(0x38)) // Display on, Cursor off
+            if (!write0x80Byte(0x38) && i2c_check) // Function Set DL N
                 q_display = eDisplay.none // wenn Display über I²C nicht reagiert
 
             control.waitMicros(50) // >39µs
@@ -211,6 +210,15 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
                 special_command(LCD_SETDDRAMADDR | ([0x00, 0x40, 0x14, 0x54].get(row) + col)) // max. 7 Bit (127)
             }
             else if (q_display == eDisplay.grove_16_2) {
+                /*
+                let command: number
+                if (row == 0)
+                    command = col | 0x80
+                else
+                    command = col | 0xC0
+                basic.showNumber(command)
+                basic.showString(write0x80Byte(command).toString())
+                */
                 write0x80Byte((row == 0 ? col | 0x80 : col | 0xc0))
                 control.waitMicros(50)
             }
@@ -401,6 +409,5 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
     //    LCD_SETCGRAMADDR = 0x40   nicht benutzt
     // set Cursor
     const LCD_SETDDRAMADDR = 0x80   // SPECIAL_COMMAND, LCD_SETDDRAMADDR | (col + row_offsets[row])
-
 
 } // lcd.ts
