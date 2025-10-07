@@ -266,10 +266,10 @@ Lutz Elßner, Freiberg, Oktober 2025, lutz@elssner.net
     let q_string_index = 0 // 0, (16|60), (32|120) substr start
 
     export enum eINC {
-        //% block="+0"
-        inc0 = 0,
         //% block="+1"
-        inc1 = 1
+        inc1 = 1,
+        //% block="+0"
+        inc0 = 0
     }
 
     //% group="Text Array"
